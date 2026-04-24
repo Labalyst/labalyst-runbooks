@@ -64,10 +64,11 @@ Plus operational artifacts (not alert-targeted, but referenced from the
 runbooks above):
 
 - [`recipient-lifecycle.md`](./recipient-lifecycle.md) — enrollment,
-  offboarding, monthly hygiene checklists.
-- [`recipient-roster.md`](./recipient-roster.md) — append-only log of
-  enrolled responders. Stores **Pushover group keys** (Secret Manager
-  refs), never user keys, never personal contact info.
+  offboarding, monthly hygiene checklists. References the **internal
+  recipient roster** (kept in the private `labalyst/labalyst` repo at
+  `documentation/operations/runbooks/recipient-roster.md` — not
+  published here because it contains responder fallback emails that
+  shouldn't be public-readable).
 - [`gcp-alerting-best-practices.md`](./gcp-alerting-best-practices.md) —
   standalone reference doc on coverage patterns, signal sources,
   channels, alerting-on-alerting, payload conventions.
@@ -181,9 +182,10 @@ PR. No self-approval on allowlist additions.
 
 - Real secrets, API keys, tokens (covered by the scan above).
 - Tenant data — UUIDs, names, emails, lab content.
-- Individual contact info — use group/role channels only
-  (`recipient-roster.md` stores Secret Manager **refs** to Pushover
-  group keys, never the keys themselves and never user keys).
+- Individual contact info — use group/role channels only. The
+  recipient roster (which lists per-responder Secret Manager refs +
+  fallback emails) is intentionally kept in the private
+  `labalyst/labalyst` repo, not here.
 - Internal hostnames beyond `ops.labalyst.ai`.
 - Source code or architecture internals beyond what a runbook needs.
 

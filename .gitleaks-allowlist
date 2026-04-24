@@ -1,0 +1,23 @@
+# .gitleaks-allowlist — human-curated false-positive list for labalyst/labalyst-runbooks
+#
+# Every entry MUST include:
+#   1. The exact string or regex being allowlisted
+#   2. The rule ID it would otherwise match
+#   3. A one-line justification
+#   4. The PR number where it was added (review by platform lead required)
+#
+# Format: see https://github.com/gitleaks/gitleaks#configuration — this file
+# is referenced from .gitleaks.toml [allowlist] paths so its own contents
+# never trigger scans.
+#
+# Example entry (uncomment and adapt; do not commit example UUIDs as live):
+#
+#   # rule: tenant-uuid
+#   # justification: example UUID used in `db-connection-pool-exhaustion.md`
+#   #                §3 "How to find the offending tenant" — synthetic, never
+#   #                allocated to a real tenant per PRD §9.
+#   # PR: #N
+#   00000000-0000-0000-0000-000000000000
+#
+# The allowlist starts empty. Additions require platform-lead review on the
+# same PR — no self-approval (README "Contributing" section).

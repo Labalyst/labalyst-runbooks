@@ -1,0 +1,86 @@
+# gitleaks config for labalyst/labalyst-runbooks
+#
+# Extends the upstream default ruleset with patterns specific to the shapes
+# that could plausibly leak from this repo. The README's "Contributing —
+# Secret-scan CI" section is the human-facing index of these rules.
+#
+# To run locally:
+#   gitleaks detect --config .gitleaks.toml --redact
+
+title = "labalyst-runbooks gitleaks config"
+
+# Pull in the upstream default rules in addition to ours.
+[extend]
+useDefault = true
+
+# ---------------------------------------------------------------------------
+# Custom rules
+# ---------------------------------------------------------------------------
+
+[[rules]]
+id = "pushover-user-key"
+description = "Pushover user key (per-device, paging target)"
+regex = '''(?i)\bu[a-z0-9]{29}\b'''
+tags = ["pushover", "credential", "high"]
+
+[[rules]]
+id = "pushover-app-token"
+description = "Pushover application API token"
+regex = '''(?i)\ba[a-z0-9]{29}\b'''
+tags = ["pushover", "credential", "high"]
+
+[[rules]]
+id = "pushover-group-key"
+description = "Pushover delivery-group key (lower risk than user key but still off-limits)"
+regex = '''(?i)\bg[a-z0-9]{29}\b'''
+tags = ["pushover", "credential", "medium"]
+
+[[rules]]
+id = "healthchecks-io-ping-url"
+description = "healthchecks.io ping URL (capability URL — possession = ability to suppress alerts)"
+regex = '''https://hc-ping\.com/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'''
+tags = ["healthchecks-io", "credential", "high"]
+
+[[rules]]
+id = "google-chat-webhook-url"
+description = "Google Chat incoming-webhook URL (capability URL — possession = ability to post to ops space)"
+regex = '''https://chat\.googleapis\.com/v1/spaces/[A-Za-z0-9_-]+/messages\?[^\s"'<>)]+'''
+tags = ["google-chat", "credential", "high"]
+
+[[rules]]
+id = "clerk-secret-key"
+description = "Clerk secret key (sk_test_ / sk_live_)"
+regex = '''\bsk_(test|live)_[A-Za-z0-9]{20,}\b'''
+tags = ["clerk", "credential", "critical"]
+
+[[rules]]
+id = "gcp-service-account-private-key"
+description = "GCP service-account JSON private-key marker"
+regex = '''"private_key"\s*:\s*"-----BEGIN (RSA |EC )?PRIVATE KEY-----'''
+tags = ["gcp", "credential", "critical"]
+
+[[rules]]
+id = "tenant-uuid"
+description = "Tenant UUID (PRD §9 data-classification rule — UUIDs only allowed via .gitleaks-allowlist with platform-lead sign-off)"
+regex = '''\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b'''
+tags = ["pii", "tenant", "medium"]
+# All UUID matches are treated as suspicious by default. Use .gitleaks-allowlist
+# (with platform-lead PR review) to whitelist UUIDs that are example/synthetic.
+
+# ---------------------------------------------------------------------------
+# Repo-wide allowlists (paths and stopwords that must never trigger)
+# ---------------------------------------------------------------------------
+
+[allowlist]
+description = "Repo-wide allowlist — paths and patterns excluded from scanning"
+paths = [
+  '''\.gitleaks\.toml''',          # this file (contains rule patterns, not secrets)
+  '''\.gitleaks-allowlist''',      # the human-curated false-positive list
+  '''\.github/workflows/secret-scan\.yml''',
+]
+# Stopwords for example/template content — keep this list tight.
+stopwords = [
+  "EXAMPLE",
+  "PLACEHOLDER",
+  "REDACTED",
+]
