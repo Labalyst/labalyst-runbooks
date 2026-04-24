@@ -80,12 +80,12 @@ Every runbook in this repo uses the exact five-section structure below.
 This is a hard requirement: payload rendering, the GCS mirror's HTML
 template, and reviewer checklists all assume it.
 
-```markdown
-# Runbook: <title>
+````markdown
+# Runbook: {title}
 
-> **Alert class(es)**: `<signal_class_a>`, `<signal_class_b>`
+> **Alert class(es)**: `{signal_class_a}`, `{signal_class_b}`
 > **Tier(s)**: P1 / P2
-> **Last reviewed**: YYYY-MM-DD by <platform-lead>
+> **Last reviewed**: YYYY-MM-DD by {platform-lead}
 
 ## What this alert means
 
@@ -95,34 +95,37 @@ be authenticated).
 
 ## First-response checks (in order)
 
-1. **<Check name>** — <one-line action> — <expected healthy state>
+1. **{Check name}** — {one-line action} — {expected healthy state}
+
    ```bash
    # optional concrete copyable command
    ```
-2. **<Check name>** — ...
-3. **<Check name>** — ...
+
+2. **{Check name}** — ...
+3. **{Check name}** — ...
 
 ## How to confirm it is resolved
 
-- <Observable signal that says the incident is over>
-- <How long to wait before declaring "resolved">
+- {Observable signal that says the incident is over}
+- {How long to wait before declaring "resolved"}
 
 ## When to escalate or ask for help
 
-- <Condition that means "stop trying alone">
-- <Who to reach, on what channel>
-- <What information to bring>
+- {Condition that means "stop trying alone"}
+- {Who to reach, on what channel}
+- {What information to bring}
 
 ## Related ACs, signal sources, last-reviewed date
 
-- PRD AC references: <AC-IDs>
-- Signal sources: <Cloud Monitoring policy IDs that point here>
+- PRD AC references: {AC-IDs}
+- Signal sources: {Cloud Monitoring policy IDs that point here}
 - Last reviewed: YYYY-MM-DD
 - Next review due: YYYY-MM-DD (quarterly)
-```
+````
 
 **Visual conventions** (UX §6.3):
-- One H1 per file (`# Runbook: <title>`); each section is H2.
+
+- One H1 per file (`# Runbook: {title}`); each section is H2.
 - Numbered first-response list — order is load-bearing.
 - Fenced code blocks for any copyable command, with language hint.
 - No images. No collapsed `<details>` blocks. No links to Labalyst
