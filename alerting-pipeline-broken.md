@@ -48,8 +48,8 @@ The alerting *system itself* has a problem. One of:
      ```
    - (b) **ops-service down?** Test the heartbeat endpoint directly:
      ```bash
-     gcloud run services describe ops-service \
-       --region=us-central1 --project=labalyst-prod \
+     gcloud run services describe production-ops-service \
+       --region=us-central1 --project=production-482716 \
        --format='yaml(status.conditions,status.latestReadyRevisionName)'
      curl -fsS -m 5 https://ops.labalyst.ai/ops/heartbeat | jq .
      ```
@@ -61,19 +61,19 @@ The alerting *system itself* has a problem. One of:
      its last-run status:
      ```bash
      gcloud scheduler jobs describe heartbeat-internal \
-       --location=us-central1 --project=labalyst-prod \
+       --location=us-central1 --project=production-482716 \
        --format='yaml(state,lastAttemptTime,status)'
      ```
      If `state != ENABLED`, enable it:
      ```bash
      gcloud scheduler jobs resume heartbeat-internal \
-       --location=us-central1 --project=labalyst-prod
+       --location=us-central1 --project=production-482716
      ```
    - (d) **Metric-writer SA permissions?** ops-service needs
      `roles/monitoring.metricWriter`. If a recent IAM change stripped
      it, heartbeats will silently stop.
      ```bash
-     gcloud projects get-iam-policy labalyst-prod \
+     gcloud projects get-iam-policy production-482716 \
        --flatten='bindings[].members' \
        --filter='bindings.role:roles/monitoring.metricWriter' \
        --format='value(bindings.members)'
@@ -90,14 +90,14 @@ The alerting *system itself* has a problem. One of:
    - (b) **Cloud Scheduler job `heartbeat-external`?**
      ```bash
      gcloud scheduler jobs describe heartbeat-external \
-       --location=us-central1 --project=labalyst-prod \
+       --location=us-central1 --project=production-482716 \
        --format='yaml(state,lastAttemptTime,status)'
      ```
      If it ran but returned non-2xx, check the ping-URL secret —
      it may have been rotated and not re-loaded:
      ```bash
      gcloud secrets versions list ops-service-hcio-ping-url \
-       --project=labalyst-prod --limit=3 \
+       --project=production-482716 --limit=3 \
        --format='table(name,state,createTime)'
      ```
      If a newer version exists than what ops-service loaded, restart
@@ -105,8 +105,8 @@ The alerting *system itself* has a problem. One of:
    - (c) **Egress path broken?** ops-service reaches hc.io over public
      internet. If Cloud NAT / egress has an issue:
      ```bash
-     gcloud run services describe ops-service \
-       --region=us-central1 --project=labalyst-prod \
+     gcloud run services describe production-ops-service \
+       --region=us-central1 --project=production-482716 \
        --format='value(spec.template.metadata.annotations)' \
        | tr ',' '\n' | grep vpc-access
      ```
@@ -136,9 +136,9 @@ The alerting *system itself* has a problem. One of:
      # The weekly synthetic logs its delivery_id to Cloud Logging:
      gcloud logging read \
        'resource.type="cloud_run_revision"
-        AND resource.labels.service_name="ops-service"
+        AND resource.labels.service_name="production-ops-service"
         AND jsonPayload.event="synthetic_p1_dispatched"' \
-       --project=labalyst-prod --limit=5 --format=json \
+       --project=production-482716 --limit=5 --format=json \
        | jq -r '.[] | "\(.timestamp) delivery_id=\(.jsonPayload.pushover_delivery_id) status=\(.jsonPayload.pushover_status)"'
      ```
    - (b) If Pushover delivery_id exists but `pushover_status != 1`,
@@ -172,9 +172,9 @@ The alerting *system itself* has a problem. One of:
    ```bash
    # Pull secrets (local, short-lived)
    PUSHOVER_TOKEN=$(gcloud secrets versions access latest \
-     --secret=pushover-app-token --project=labalyst-prod)
+     --secret=ops-service-pushover-app-token --project=production-482716)
    PUSHOVER_GROUP=$(gcloud secrets versions access latest \
-     --secret=pushover-group-key --project=labalyst-prod)
+     --secret=ops-service-pushover-group-key --project=production-482716)
    # Send a manual P1-class test
    curl -fsS https://api.pushover.net/1/messages.json \
      -F "token=$PUSHOVER_TOKEN" \
