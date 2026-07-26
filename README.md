@@ -59,6 +59,7 @@ repo so it doesn't get lost.
 | [`uptime-check-failure.md`](./uptime-check-failure.md)                         | External uptime probe failures                                                                      |
 | [`cost-spike.md`](./cost-spike.md)                                             | Cost runaway, budget thresholds, AI-token runaway                                                   |
 | [`alerting-pipeline-broken.md`](./alerting-pipeline-broken.md)                 | Heartbeat absent (internal/external), synthetic-P1 unacked                                          |
+| [`scanner-anomaly.md`](./scanner-anomaly.md)                                   | Scanner probing - per-IP 401 spike, Cloud Armor deny-list block volume                              |
 
 Plus operational artifacts (not alert-targeted, but referenced from the
 runbooks above):
@@ -144,9 +145,10 @@ be authenticated).
   match current signal semantics. Update `Last reviewed` and `Next
   review due` in each file's metadata blockquote.
 
-The six **day-1 slugs** above may not be removed without
-product-owner sign-off — each corresponds to a live Cloud Monitoring
-policy whose payload references the slug via Terraform `runbook_url`.
+The six **day-1 slugs** (the first six index rows) may not be removed
+without product-owner sign-off — each corresponds to a live Cloud
+Monitoring policy whose payload references the slug via Terraform
+`runbook_url`.
 Additions are welcome when a new signal class is introduced; follow
 the template above and register the slug in the corresponding alert
 policy in the same PR.
