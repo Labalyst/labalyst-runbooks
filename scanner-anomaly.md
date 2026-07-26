@@ -28,13 +28,7 @@ a gap worth closing in the deny-list, or a real incident.
 
 ## First-response checks (in order)
 
-1. **Set your project once.** Every command below uses it.
-
-   ```bash
-   PROJECT=<production project id>   # GCP console > project picker
-   ```
-
-2. **Read the enrichment already in your payload.** Do not run any
+1. **Read the enrichment already in your payload.** Do not run any
    query yet. The page carries four fields that usually settle the
    triage on their own:
 
@@ -47,10 +41,10 @@ a gap worth closing in the deny-list, or a real incident.
 
    Check `signal_context.enrichment_status` first. If it is `ok`, the
    numbers are good. If it is `unavailable`, `timeout`, or `error`,
-   the page went out un-enriched by design - skip to step 4 and
+   the page went out un-enriched by design - skip to step 3 and
    gather the same facts by hand.
 
-3. **Make the scanner-vs-real-user call. Path spread is the
+2. **Make the scanner-vs-real-user call. Path spread is the
    discriminator.** Many distinct paths from few IPs means a scanner
    sweeping a wordlist. Few distinct paths from many IPs means real
    users hitting something broken.
@@ -58,7 +52,7 @@ a gap worth closing in the deny-list, or a real incident.
    | Shape | Read it as |
    | --- | --- |
    | High `distinct_path_count`, 1-2 IPs | scanner (the common case) |
-   | Low `distinct_path_count`, many IPs | NOT a scanner - go to 3b |
+   | Low `distinct_path_count`, many IPs | NOT a scanner - go to 2b |
    | Low count, 1 IP, one odd path | integration or bot, not a sweep |
 
    For `security.scanner_auth_failure` specifically: almost every
@@ -67,7 +61,7 @@ a gap worth closing in the deny-list, or a real incident.
    presumptively a scanner. The real-user shape to watch for is a
    client or integration hammering one non-`/api/v1/` path.
 
-   **3b. If `top_paths` contains anything that looks like a real
+   **2b. If `top_paths` contains anything that looks like a real
    application path** - an app route, a `/assets/...` bundle, a
    `/.well-known/...` URI - stop treating this as a scanner. On
    `security.edge_block_spike` that pattern means a deny-list rule is
@@ -75,7 +69,7 @@ a gap worth closing in the deny-list, or a real incident.
    the edge**. That is a P1 outage, not a probe. Go straight to the
    escalation section and say "deny-list false positive".
 
-4. **Only if enrichment was missing: pull the same facts by hand.**
+3. **Only if enrichment was missing: pull the same facts by hand.**
 
    Top source IPs and path spread for an auth-failure page:
 
@@ -85,7 +79,7 @@ a gap worth closing in the deny-list, or a real incident.
       AND resource.labels.service_name="production-backend"
       AND httpRequest.status=401
       AND NOT httpRequest.requestUrl:"/api/v1/"' \
-     --project="$PROJECT" --limit=1000 --freshness=1h \
+     --project=production-482716 --limit=1000 --freshness=1h \
      --format=json > /tmp/scanner.json
 
    jq -r '.[].httpRequest.remoteIp' /tmp/scanner.json \
@@ -100,7 +94,7 @@ a gap worth closing in the deny-list, or a real incident.
    gcloud logging read \
      'resource.type="http_load_balancer"
       AND jsonPayload.enforcedSecurityPolicy.outcome="DENY"' \
-     --project="$PROJECT" --limit=1000 --freshness=1h \
+     --project=production-482716 --limit=1000 --freshness=1h \
      --format=json > /tmp/deny.json
 
    jq -r '.[].httpRequest.remoteIp' /tmp/deny.json \
@@ -109,7 +103,7 @@ a gap worth closing in the deny-list, or a real incident.
      | sed 's|?.*||' | sort | uniq -c | sort -rn | head -20
    ```
 
-5. **Confirm the auth wall held. This is the question that matters
+4. **Confirm the auth wall held. This is the question that matters
    for breach notification.** Everything above tells you someone
    knocked. This tells you whether any door opened. Run the standing
    forensic query over the alert window - it lists any scanner-shaped
@@ -129,7 +123,7 @@ a gap worth closing in the deny-list, or a real incident.
       httpRequest.requestUrl=~\"(?i)(\\.env|\\.git|phpinfo|info\\.php|php\\.php|wp-config|wp-json|\\.aws|config\\.(php|js|json)|aws-config|_environment|_profiler|webroot|robots\\.txt)\"
       httpRequest.status!=401
       httpRequest.status!=404" \
-     --project="$PROJECT" --limit=200 --format=json
+     --project=production-482716 --limit=200 --format=json
    ```
 
    **Zero rows is the expected result and closes the question.** Any
@@ -137,19 +131,19 @@ a gap worth closing in the deny-list, or a real incident.
    scanner-shaped got a real response. Escalate immediately and bring
    the rows.
 
-6. **Decide, and record the decision.** One of three:
+5. **Decide, and record the decision.** One of three:
 
    - **Benign.** Background internet scanning, everything blocked,
-     step 5 clean. Ack the page. If this exact shape has now paged
+     step 4 clean. Ack the page. If this exact shape has now paged
      more than twice in a week, say so when you ack - it is threshold
      tuning input, not a new incident.
    - **Extend the deny-list.** The sweep found paths we do not block
-     yet and step 5 is clean. Follow the section below.
-   - **Open an incident.** Step 5 returned rows, or step 3b said
+     yet and step 4 is clean. Follow the section below.
+   - **Open an incident.** Step 4 returned rows, or step 2b said
      real users are being blocked, or the volume is sustained enough
      to be an availability concern.
 
-7. **Extending the deny-list (only for the middle case).**
+6. **Extending the deny-list (only for the middle case).**
 
    **Read this before opening the PR: the Cloud Armor policy is at
    its CEL-evaluation rule quota (20, fully consumed by the current
@@ -184,7 +178,7 @@ a gap worth closing in the deny-list, or a real incident.
 - The alert policy auto-closes after 30 minutes with no new data.
   You do not need to close it by hand.
 - No repeat fire of the same signal class within one hour.
-- The forensic query in step 5 returns zero rows for the full window,
+- The forensic query in step 4 returns zero rows for the full window,
   extended to the point the traffic stopped.
 - If you extended the deny-list: the next scheduled edge-block
   verifier run is green, and the newly added path returns 404.
@@ -194,13 +188,13 @@ a gap worth closing in the deny-list, or a real incident.
 
 ## When to escalate or ask for help
 
-- **Immediately, ahead of everything else**, if step 5 returned any
+- **Immediately, ahead of everything else**, if step 4 returned any
   row that is not `/robots.txt` returning 200. That is a possible
   disclosure and starts a 72-hour GDPR notification clock. Bring the
   raw rows, the window, and the requesting IPs.
-- **Immediately** if step 3b showed real users being blocked by the
+- **Immediately** if step 2b showed real users being blocked by the
   deny-list. Availability incident. Bring `top_paths` and the DENY
-  sample from step 4.
+  sample from step 3.
 - If the volume is sustained for more than an hour, or is large
   enough to look like a capacity event rather than a scan.
 - If you need a deny-list rule but the CEVAL quota blocks it, and the
@@ -209,14 +203,14 @@ a gap worth closing in the deny-list, or a real incident.
   `@platform-lead`. If nobody acks within 15 minutes, follow the
   escalation ladder in `recipient-lifecycle.md`.
 - **What to bring**: the alert payload verbatim (it carries the
-  enrichment), `distinct_path_count`, the top IPs, the step 5 result,
-  and which of the three decisions in step 6 you reached.
+  enrichment), `distinct_path_count`, the top IPs, the step 4 result,
+  and which of the three decisions in step 5 you reached.
 
 ## Related ACs, signal sources, last-reviewed date
 
 - PRD AC references: AC2.1 (auth-failure spike), AC2.2 (edge-block
   spike), AC2.3 (payload contents), AC2.4 (this runbook). Forensic
-  template in step 5 is the AC1.3 query.
+  template in step 4 is the AC1.3 query.
 - Signal sources: `scanner.auth_failure_spike`,
   `scanner.edge_block_spike` - policies in
   `terraform/modules/monitoring/production-alerts/security-scanner/`.
