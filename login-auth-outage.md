@@ -47,7 +47,7 @@ the login funnel. Each class has its own first-response paragraph below.
       AND resource.labels.service_name="production-backend"
       AND httpRequest.requestUrl=~"/api/v1/auth/"
       AND severity>=ERROR' \
-     --project=labalyst-prod --limit=50 --format=json \
+     --project=production-482716 --limit=50 --format=json \
      | jq -r '.[].resource.labels.revision_name' | sort | uniq -c | sort -rn
    ```
    If one revision dominates, roll back (see class-2 command block).
@@ -64,17 +64,17 @@ the login funnel. Each class has its own first-response paragraph below.
      'resource.type="cloud_run_revision"
       AND resource.labels.service_name="production-backend"
       AND jsonPayload.logger="app.auth.clerk_client"' \
-     --project=labalyst-prod --limit=100 --format='value(jsonPayload.duration_ms)' \
+     --project=production-482716 --limit=100 --format='value(jsonPayload.duration_ms)' \
      | awk '{s+=$1; n++} END {if (n>0) print "mean="s/n"ms n="n}'
    ```
    Rollback procedure:
    ```bash
    # Identify the last-known-good revision
    gcloud run revisions list --service=production-backend \
-     --region=us-central1 --project=labalyst-prod --limit=5
+     --region=us-central1 --project=production-482716 --limit=5
    # Route 100% traffic to that revision
    gcloud run services update-traffic production-backend \
-     --region=us-central1 --project=labalyst-prod \
+     --region=us-central1 --project=production-482716 \
      --to-revisions=production-backend-<GOOD-REVISION>=100
    ```
 
@@ -102,7 +102,7 @@ the login funnel. Each class has its own first-response paragraph below.
       AND resource.labels.service_name="production-backend"
       AND jsonPayload.logger="app.auth.session_service"
       AND jsonPayload.event=~"session_(created|create_failed)"' \
-     --project=labalyst-prod --limit=200 --format=json \
+     --project=production-482716 --limit=200 --format=json \
      | jq -r '.[].jsonPayload.event' | sort | uniq -c
    ```
    Also check the Postgres `users` / `sessions` table for a write-lock
@@ -121,7 +121,7 @@ the login funnel. Each class has its own first-response paragraph below.
    gcloud logging read \
      'resource.type="cloud_run_revision"
       AND jsonPayload.event="token_refresh_failed"' \
-     --project=labalyst-prod --limit=50 --format=json \
+     --project=production-482716 --limit=50 --format=json \
      | jq -r '.[].jsonPayload.reason' | sort | uniq -c | sort -rn
    ```
    Top reasons: `clerk_jwt_expired`, `clock_skew`, `revoked_session`.

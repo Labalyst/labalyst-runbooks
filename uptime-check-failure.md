@@ -50,11 +50,11 @@ dependency (Clerk, Cloud SQL, Redis) is taking the app with it.
    ```bash
    # LB forwarding rule (frontend)
    gcloud compute forwarding-rules list \
-     --project=labalyst-prod \
+     --project=production-482716 \
      --format='table(name,IPAddress,target,region)'
    # Cloud Run service state
    gcloud run services describe production-backend \
-     --region=us-central1 --project=labalyst-prod \
+     --region=us-central1 --project=production-482716 \
      --format='yaml(status.conditions,status.traffic,status.latestReadyRevisionName)'
    ```
    Expect `Ready=True` and traffic pointing at a valid revision. If
@@ -68,7 +68,7 @@ dependency (Clerk, Cloud SQL, Redis) is taking the app with it.
      'resource.type="cloud_run_revision"
       AND resource.labels.service_name="production-backend"
       AND (severity>=ERROR OR httpRequest.status>=500)' \
-     --project=labalyst-prod --limit=50 --freshness=15m --format=json \
+     --project=production-482716 --limit=50 --freshness=15m --format=json \
      | jq -r '.[] | "\(.timestamp) \(.httpRequest.status // .severity) \(.jsonPayload.message // .textPayload // "")"' \
      | head -20
    ```
@@ -79,7 +79,7 @@ dependency (Clerk, Cloud SQL, Redis) is taking the app with it.
    the probe configuration itself.** A recent Terraform change to the
    uptime check can silently break the probe path.
    ```bash
-   gcloud monitoring uptime list-configs --project=labalyst-prod \
+   gcloud monitoring uptime list-configs --project=production-482716 \
      --format='table(displayName,monitoredResource.type,httpCheck.path,period)' \
      | grep -i api-health
    ```

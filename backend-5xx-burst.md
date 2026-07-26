@@ -22,12 +22,13 @@ seeing error pages.
    rule out infrastructure. We run a single-zone Cloud SQL + Redis
    deployment today; a zone event cascades into backend 5xx.
    ```bash
-   # Cloud SQL up?
-   gcloud sql instances describe production-db \
-     --project=labalyst-prod --format='value(state,region,settings.availabilityType)'
+   # Cloud SQL up? (instance name carries a generated suffix)
+   gcloud sql instances list --project=production-482716 \
+     --filter='name~^production-postgres-' \
+     --format='value(name,state,region,settings.availabilityType)'
    # Redis up?
-   gcloud redis instances describe production-cache \
-     --region=us-central1 --project=labalyst-prod \
+   gcloud redis instances describe production-redis \
+     --region=us-central1 --project=production-482716 \
      --format='value(state,host,port,locationId)'
    # GCP zonal status
    curl -fsS https://status.cloud.google.com/incidents.json \
@@ -44,7 +45,7 @@ seeing error pages.
      'resource.type="cloud_run_revision"
       AND resource.labels.service_name="production-backend"
       AND httpRequest.status>=500' \
-     --project=labalyst-prod --limit=100 --format=json \
+     --project=production-482716 --limit=100 --format=json \
      > /tmp/5xx.json
    # Top endpoints
    jq -r '.[].httpRequest.requestUrl' /tmp/5xx.json \
@@ -61,7 +62,7 @@ seeing error pages.
    are logged as Cloud Audit events:
    ```bash
    gcloud run revisions list --service=production-backend \
-     --region=us-central1 --project=labalyst-prod \
+     --region=us-central1 --project=production-482716 \
      --limit=5 --format='table(name,creationTimestamp,active)'
    ```
    If the latest `active=True` revision was deployed within 15 min of
@@ -73,7 +74,7 @@ seeing error pages.
       AND resource.labels.service_name="production-backend"
       AND severity>=ERROR
       AND NOT jsonPayload.message=~"health"' \
-     --project=labalyst-prod --limit=50 --format=json \
+     --project=production-482716 --limit=50 --format=json \
      | jq -r '.[].jsonPayload | .logger + ": " + .message' \
      | sort | uniq -c | sort -rn | head -10
    ```
@@ -82,15 +83,15 @@ seeing error pages.
    ```bash
    # List last 5 revisions with traffic share
    gcloud run services describe production-backend \
-     --region=us-central1 --project=labalyst-prod \
+     --region=us-central1 --project=production-482716 \
      --format='table(status.traffic[].revisionName,status.traffic[].percent)'
    # Revert all traffic to the previous known-good revision
    gcloud run services update-traffic production-backend \
-     --region=us-central1 --project=labalyst-prod \
+     --region=us-central1 --project=production-482716 \
      --to-revisions=production-backend-<PREVIOUS-GOOD>=100
    # Verify
    gcloud run services describe production-backend \
-     --region=us-central1 --project=labalyst-prod \
+     --region=us-central1 --project=production-482716 \
      --format='value(status.traffic[].percent,status.traffic[].revisionName)'
    ```
    Expect 5xx rate to drop within 60 s as LB routing converges.
@@ -99,7 +100,7 @@ seeing error pages.
    memory/CPU pressure:
    ```bash
    gcloud monitoring time-series list \
-     --project=labalyst-prod \
+     --project=production-482716 \
      --filter='metric.type="run.googleapis.com/container/memory/utilizations"
               AND resource.labels.service_name="production-backend"' \
      --interval-end-time=$(date -u -d '5 min ago' +%Y-%m-%dT%H:%M:%SZ)

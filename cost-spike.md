@@ -33,12 +33,12 @@ Three sub-classes; choose response by `signal_class` on the payload:
    ```bash
    # Current flag state
    gcloud run services describe production-backend \
-     --region=us-central1 --project=labalyst-prod \
+     --region=us-central1 --project=production-482716 \
      --format='value(spec.template.spec.containers[0].env)' \
      | tr ',' '\n' | grep -E 'AI_|VOICE_|FEATURE_'
    # Flip: set AI_ENABLED=false (adjust variable name to match current IaC)
    gcloud run services update production-backend \
-     --region=us-central1 --project=labalyst-prod \
+     --region=us-central1 --project=production-482716 \
      --update-env-vars=AI_ENABLED=false
    ```
    Expect `ai_tokens_total_5min` to flatten within 2-3 minutes.
@@ -49,7 +49,7 @@ Three sub-classes; choose response by `signal_class` on the payload:
    labi_metering/ai_tokens_by_feature` — which feature is driving?
    ```bash
    gcloud monitoring time-series list \
-     --project=labalyst-prod \
+     --project=production-482716 \
      --filter='metric.type="custom.googleapis.com/labi_metering/ai_tokens_by_feature"' \
      --interval-start-time=$(date -u -d '15 min ago' +%Y-%m-%dT%H:%M:%SZ) \
      --format='value(metric.labels.feature,points[0].value.doubleValue)' \
@@ -58,7 +58,7 @@ Three sub-classes; choose response by `signal_class` on the payload:
    For generic `cost.runaway`, open the per-project billing breakdown:
    ```
    https://console.cloud.google.com/billing/<billing-account-id>/reports
-     ?project=labalyst-prod
+     ?project=production-482716
    ```
    Filter by service, group by SKU, time window "last 6 hours". The
    top row is your culprit.
@@ -66,14 +66,14 @@ Three sub-classes; choose response by `signal_class` on the payload:
 3. **Check for a runaway Celery worker.** A stuck or looping Celery
    task can spin compute and AI-API calls indefinitely.
    ```bash
-   gcloud run services describe production-celery \
-     --region=us-central1 --project=labalyst-prod \
+   gcloud run services describe production-tenant-worker \
+     --region=us-central1 --project=production-482716 \
      --format='value(status.traffic[].revisionName,spec.template.spec.containers[0].resources)'
    gcloud logging read \
      'resource.type="cloud_run_revision"
-      AND resource.labels.service_name="production-celery"
+      AND resource.labels.service_name="production-tenant-worker"
       AND jsonPayload.event=~"task_(retry|failed|published)"' \
-     --project=labalyst-prod --limit=100 --format=json \
+     --project=production-482716 --limit=100 --format=json \
      | jq -r '.[].jsonPayload.task_name' | sort | uniq -c | sort -rn | head
    ```
    If one task name dominates retries, stop the worker revision

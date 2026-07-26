@@ -9,7 +9,7 @@
 
 ## What this alert means
 
-The Cloud SQL Postgres instance for `production-db` is at or near its
+The production Cloud SQL Postgres instance is at or near its
 connection pool ceiling. Postgres `max_connections` is a hard ceiling;
 when we cross ~70% the backend starts seeing `OperationalError:
 connection pool is full` and cascades into 5xx. This is almost always
@@ -23,9 +23,14 @@ or consequences of the same root cause.
 ## First-response checks (in order)
 
 1. **Count active sessions and their state.** Opens a direct psql to
-   the prod instance via the Cloud SQL proxy.
+   the prod instance via the Cloud SQL proxy. The instance name carries
+   a generated suffix, so resolve it rather than typing it.
    ```bash
-   gcloud sql connect production-db --user=postgres --project=labalyst-prod
+   SQL_INSTANCE=$(gcloud sql instances list --project=production-482716 \
+     --filter='name~^production-postgres-' --format='value(name)' | head -1)
+   echo "$SQL_INSTANCE"
+
+   gcloud sql connect "$SQL_INSTANCE" --user=postgres --project=production-482716
    -- Inside psql:
    SELECT state, count(*) FROM pg_stat_activity
     WHERE datname='labi_db' GROUP BY state ORDER BY count(*) DESC;
@@ -78,10 +83,10 @@ or consequences of the same root cause.
    app-version? Likely a code leak; roll back the revision per
    `backend-5xx-burst.md` step 4.
 
-4. **Open Cloud SQL Insights for query-level hot spots.**
+4. **Open Cloud SQL Insights for query-level hot spots.** Pick the
+   `production-postgres-*` instance, then the Insights tab.
    ```
-   https://console.cloud.google.com/sql/instances/production-db/insights
-     ?project=labalyst-prod
+   https://console.cloud.google.com/sql/instances?project=production-482716
    ```
    Sort by "Total time" over the last hour. Missing indexes and
    sequential scans show up here.
@@ -91,11 +96,12 @@ or consequences of the same root cause.
    the Cloud SQL VM and sidesteps the real cause. Only do this if you
    are actively losing users and cannot find a rollback candidate.
    ```bash
+   # $SQL_INSTANCE is resolved in step 1; re-run that lookup if needed.
    # Current setting
-   gcloud sql instances describe production-db --project=labalyst-prod \
+   gcloud sql instances describe "$SQL_INSTANCE" --project=production-482716 \
      --format='value(settings.databaseFlags)'
    # Bump (example: 200 -> 300). This triggers a brief restart.
-   gcloud sql instances patch production-db --project=labalyst-prod \
+   gcloud sql instances patch "$SQL_INSTANCE" --project=production-482716 \
      --database-flags=max_connections=300
    ```
    Record the change in an incident note; file a follow-up to reduce
