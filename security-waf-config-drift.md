@@ -11,8 +11,10 @@ configuration differs from the enforced Terraform authority. It checks policy
 attachment on all edge backends, request logging, the managed-rule floor, and
 whether a WAF rule returned to preview after the enforcement deadline.
 
-Read `drift_items` in the alert payload first. Each item names the failed check
-and the observed state.
+Read the alert summary first; it names the failed check types. The notification
+is intentionally compact. Read the `waf-reconcile: drift detected` ERROR entry
+in the `waf-config-reconcile` function logs for every affected resource and
+the complete details before changing production.
 
 ## First-response checks (in order)
 
@@ -74,7 +76,8 @@ and the observed state.
 - Escalate if Terraform cannot reproduce the expected state or proposes
   unrelated deletions.
 - Post in `ops-alerts`, tag `@platform-lead`, and bring the complete
-  `drift_items` payload, live policy output, and Terraform plan.
+  `drift_items` object from the function ERROR log, live policy output, and
+  Terraform plan.
 
 ## Related ACs, signal sources, last-reviewed date
 
