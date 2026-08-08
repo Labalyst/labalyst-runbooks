@@ -11,8 +11,10 @@ configuration differs from the enforced Terraform authority. It checks policy
 attachment on all edge backends, request logging, the managed-rule floor, and
 whether a WAF rule returned to preview after the enforcement deadline.
 
-Read `drift_items` in the alert payload first. Each item names the failed check
-and the observed state.
+Read the alert summary first; it names the failed check types. The notification
+is intentionally compact. Read the `waf-reconcile: drift detected` ERROR entry
+in the `waf-config-reconcile` function logs for every affected resource and
+the complete details before changing production.
 
 ## First-response checks (in order)
 
@@ -45,8 +47,18 @@ and the observed state.
    production provision workflow from the known-good main revision. Stop if
    its plan contains unrelated deletions.
 
-5. **Re-run reconciliation.** Invoke `waf-config-reconcile` once after the
-   apply instead of waiting for the next hourly schedule.
+5. **Re-run reconciliation through Cloud Scheduler.** The function accepts
+   internal traffic only, so trigger its authenticated scheduler job instead
+   of invoking the function URL from a laptop:
+
+   ```bash
+   gcloud scheduler jobs run waf-config-reconcile \
+     --location=<REGION> --project=<PROJECT_ID>
+   ```
+
+   Confirm the resulting `waf-config-reconcile` function log reports
+   `status: ok`; do not treat the Scheduler command being accepted as proof
+   that reconciliation passed.
 
 ## How to confirm it is resolved
 
@@ -64,7 +76,8 @@ and the observed state.
 - Escalate if Terraform cannot reproduce the expected state or proposes
   unrelated deletions.
 - Post in `ops-alerts`, tag `@platform-lead`, and bring the complete
-  `drift_items` payload, live policy output, and Terraform plan.
+  `drift_items` object from the function ERROR log, live policy output, and
+  Terraform plan.
 
 ## Related ACs, signal sources, last-reviewed date
 
