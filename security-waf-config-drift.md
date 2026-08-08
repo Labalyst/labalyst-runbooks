@@ -45,8 +45,18 @@ and the observed state.
    production provision workflow from the known-good main revision. Stop if
    its plan contains unrelated deletions.
 
-5. **Re-run reconciliation.** Invoke `waf-config-reconcile` once after the
-   apply instead of waiting for the next hourly schedule.
+5. **Re-run reconciliation through Cloud Scheduler.** The function accepts
+   internal traffic only, so trigger its authenticated scheduler job instead
+   of invoking the function URL from a laptop:
+
+   ```bash
+   gcloud scheduler jobs run waf-config-reconcile \
+     --location=<REGION> --project=<PROJECT_ID>
+   ```
+
+   Confirm the resulting `waf-config-reconcile` function log reports
+   `status: ok`; do not treat the Scheduler command being accepted as proof
+   that reconciliation passed.
 
 ## How to confirm it is resolved
 
