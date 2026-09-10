@@ -62,6 +62,7 @@ repo so it doesn't get lost.
 | [`scanner-anomaly.md`](./scanner-anomaly.md)                                   | Scanner probing - per-IP 401 spike, Cloud Armor deny-list block volume                              |
 | [`security-waf-integrity.md`](./security-waf-integrity.md)                     | Cloud Armor enforced-policy request logs unexpectedly absent                                        |
 | [`security-waf-config-drift.md`](./security-waf-config-drift.md)               | Edge policy attachment, logging, rule-count, or preview-state drift                                 |
+| [`tenant-worker-integrity.md`](./tenant-worker-integrity.md)                   | Tenant-worker OOM, child SIGKILL, and worker startup timeout                                         |
 
 Plus operational artifacts (not alert-targeted, but referenced from the
 runbooks above):
